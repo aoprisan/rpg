@@ -48,3 +48,9 @@ export function gridFacing8(gdx: number, gdy: number): number {
   const a = Math.atan2(gdy, gdx);
   return ((Math.round((a / (Math.PI * 2)) * 8) % 8) + 8) % 8;
 }
+
+/** Inverse of gridFacing8: a unit grid-space vector for an 8-way facing sector. */
+export function facing8ToVector(dir: number): Point {
+  const a = (dir / 8) * Math.PI * 2;
+  return { x: Math.cos(a), y: Math.sin(a) };
+}

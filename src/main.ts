@@ -9,9 +9,10 @@ import {
   TILE_HALF_H,
 } from "./config";
 import { RNG } from "./core/rng";
-import { screenToGrid, gridToScreen, dist } from "./core/iso";
+import { screenToGrid, gridToScreen, dist, facing8ToVector } from "./core/iso";
 import { findPath } from "./core/pathfinding";
 import { Input } from "./core/input";
+import { TouchControls } from "./ui/touch";
 import { buildAssets, Assets } from "./assets/assetStore";
 import { Dungeon } from "./world/dungeon";
 import { TileMap } from "./world/tilemap";
@@ -53,6 +54,7 @@ class Game {
   hud!: HUD;
   overlay!: Overlay;
   input!: Input;
+  touch!: TouchControls;
 
   running = false;
   time = 0;
@@ -108,7 +110,7 @@ class Game {
 
     this.hud = new HUD(this.app.screen.width, this.app.screen.height);
     this.overlay = new Overlay(this.app.screen.width, this.app.screen.height);
-    this.app.stage.addChild(this.hud.root, this.overlay.root);
+    this.app.stage.addChild(this.hud.root);
 
     this.camera = new Camera(this.world, this.app.screen.width, this.app.screen.height);
     this.input = new Input(this.app.canvas, {
@@ -116,6 +118,12 @@ class Game {
       cast: (x, y) => this.onCast(x, y),
       key: (k) => this.onKey(k),
     });
+    // Touch controls (joystick + cast button) layer above the HUD but below the
+    // title/death overlay so those still capture taps to dismiss.
+    this.touch = new TouchControls(this.app.canvas, this.app.screen.width, this.app.screen.height, {
+      cast: () => this.onTouchCast(),
+    });
+    this.app.stage.addChild(this.touch.root, this.overlay.root);
 
     this.buildLevel(this.levelSeed);
 
@@ -229,9 +237,44 @@ class Game {
     const dx = gf.x - this.player.x;
     const dy = gf.y - this.player.y;
     if (dx === 0 && dy === 0) return;
+    this.fireBolt(dx, dy);
+  }
+
+  // Touch cast button: auto-aim the bolt at the nearest enemy, falling back to
+  // the player's current facing if none are around.
+  private onTouchCast(): void {
+    if (!this.running || !this.player.canCast) return;
+    if (this.player.mana < SPELL_MANA_COST) {
+      this.overlay.flash("Not enough mana");
+      return;
+    }
+    let best: Enemy | null = null;
+    let bestD = 10;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const d = dist(this.player.x, this.player.y, e.x, e.y);
+      if (d < bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    let dx: number, dy: number;
+    if (best) {
+      dx = best.x - this.player.x;
+      dy = best.y - this.player.y;
+    } else {
+      const f = facing8ToVector(this.player.dir);
+      dx = f.x;
+      dy = f.y;
+    }
+    if (dx === 0 && dy === 0) return;
+    this.fireBolt(dx, dy);
+  }
+
+  private fireBolt(dx: number, dy: number): void {
     this.player.mana -= SPELL_MANA_COST;
     this.player.startSpellCooldown();
-    this.player.faceTowards(gf.x, gf.y);
+    this.player.faceTowards(this.player.x + dx, this.player.y + dy);
     this.player.playAttack();
     this.projectiles.push(
       new Projectile(
@@ -281,6 +324,7 @@ class Game {
     this.camera.resize(this.app.screen.width, this.app.screen.height);
     this.hud.resize(this.app.screen.width, this.app.screen.height);
     this.overlay.resize(this.app.screen.width, this.app.screen.height);
+    this.touch.resize(this.app.screen.width, this.app.screen.height);
     this.layoutVignette();
     this.updateFilterArea();
   }
@@ -307,10 +351,15 @@ class Game {
     dt = Math.min(dt, 0.05); // clamp big frame gaps
     this.time += dt;
     this.overlay.update(dt);
-    if (!this.running) return;
+    if (!this.running) {
+      this.touch.root.visible = false;
+      return;
+    }
+    this.touch.root.visible = this.touch.touchActive;
 
-    // Continuous movement while holding the left button.
-    if (this.input.holdingMove && !this.target) {
+    // Continuous movement while holding the left button (desktop only — touch is
+    // driven directly by the joystick in updatePlayer).
+    if (!this.touch.touchActive && this.input.holdingMove && !this.target) {
       const tile = this.screenToTile(this.input.x, this.input.y);
       if (!this.moveGoal || this.moveGoal.x !== tile.x || this.moveGoal.y !== tile.y) {
         this.setMoveGoal(tile.x, tile.y);
@@ -318,7 +367,8 @@ class Game {
     }
 
     this.updatePlayer(dt);
-    this.updateCombatTarget(dt);
+    if (this.touch.touchActive) this.autoMelee();
+    else this.updateCombatTarget(dt);
     this.updateEnemies(dt);
     this.updateProjectiles(dt);
     this.updateLoot(dt);
@@ -340,11 +390,46 @@ class Game {
   private updatePlayer(dt: number): void {
     this.player.tickCooldowns(dt);
     if (this.player.alive) {
-      const moving = this.player.path.length > 0;
-      this.player.state = moving ? "walk" : "idle";
-      if (moving) this.player.followPath(dt);
+      if (this.touch.touchActive) {
+        // Free, continuous movement steered by the joystick.
+        const v = this.touch.moveVector();
+        if (v) {
+          const g = screenToGrid(v.dx, v.dy);
+          this.player.moveByGrid(g.x, g.y, v.mag, dt, (x, y) => this.dungeon.isWalkable(x, y));
+          this.player.state = "walk";
+        } else {
+          this.player.state = "idle";
+        }
+      } else {
+        const moving = this.player.path.length > 0;
+        this.player.state = moving ? "walk" : "idle";
+        if (moving) this.player.followPath(dt);
+      }
     }
     this.player.advance(dt);
+  }
+
+  // Touch combat: auto-swing at the nearest living enemy in melee range. Keeps
+  // the game playable with a single thumb on the joystick — walk into a monster
+  // and you attack it.
+  private autoMelee(): void {
+    let best: Enemy | null = null;
+    let bestD = PLAYER_MELEE_RANGE;
+    for (const e of this.enemies) {
+      if (!e.alive) continue;
+      const d = dist(this.player.x, this.player.y, e.x, e.y);
+      if (d <= bestD) {
+        bestD = d;
+        best = e;
+      }
+    }
+    this.target = best; // surface it on the HUD target bar
+    if (best && this.player.canMelee) {
+      this.player.faceTowards(best.x, best.y);
+      this.player.playAttack();
+      this.player.startMeleeCooldown();
+      this.damageEnemy(best, PLAYER_MELEE_DAMAGE + this.player.weaponBonus);
+    }
   }
 
   private updateCombatTarget(_dt: number): void {
