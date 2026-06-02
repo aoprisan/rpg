@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Gothic Depths</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #000;
+        overflow: hidden;
+        font-family: "Times New Roman", Georgia, serif;
+        cursor: default;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      canvas {
+        display: block;
+        image-rendering: pixelated;
+      }
+      /* Loading screen shown until the PixiJS app boots. */
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.6rem;
+        color: #8a1c1c;
+        background: radial-gradient(circle at 50% 40%, #1a1410 0%, #000 70%);
+        z-index: 10;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+      }
+      #boot .title {
+        font-size: 2rem;
+        text-shadow: 0 0 12px #4a0d0d;
+      }
+      #boot .sub {
+        font-size: 0.8rem;
+        color: #5a4a3a;
+        letter-spacing: 0.2em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="boot">
+      <div class="title">Gothic Depths</div>
+      <div class="sub">forging the depths&hellip;</div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
