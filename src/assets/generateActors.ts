@@ -1,5 +1,5 @@
 import { PALETTE as P, RGB, css, shade } from "./palette";
-import { makeCanvas, ctx2d, groundShadow, ACTOR_W, ACTOR_H } from "./draw";
+import { makeCanvas, ctx2d, groundShadow, outlined, ACTOR_W, ACTOR_H } from "./draw";
 
 // Procedural humanoid actors. The torso faces the camera; facing direction is
 // conveyed by a lean offset and which side the weapon/head turn to. Each actor
@@ -52,8 +52,6 @@ function drawBody(
   const feetY = ACTOR_H - 10;
   const { lx, facingLeft, facingAway } = facingCues(dir);
 
-  groundShadow(g, cx, feetY + 2, kit.width * 0.9);
-
   const h = kit.height;
   const w = kit.width;
   const hipY = feetY - h * 0.42;
@@ -98,6 +96,13 @@ function drawBody(
   // torso shading
   g.fillStyle = css(kit.bodyDark, 0.5);
   g.fillRect(cx + lx, shoulderY + bob, w * 0.32, hipY - shoulderY + 4);
+  // Torch-lit highlight down the near shoulder/chest edge for form.
+  g.strokeStyle = css(shade(kit.body, 1.5), 0.5);
+  g.lineWidth = 1.5;
+  g.beginPath();
+  g.moveTo(cx - w * 0.42 + lx, shoulderY + 1 + bob);
+  g.lineTo(cx - w * 0.3 + lx, hipY + 3 + bob);
+  g.stroke();
 
   // Arms + weapon
   const armY = shoulderY + 3 + bob;
@@ -192,9 +197,15 @@ function drawWeapon(
 }
 
 function renderFrame(kit: ActorKit, dir: number, legPhase: number, attack: number): HTMLCanvasElement {
+  // Draw the figure on its own layer, outline it, then drop it onto a base that
+  // already holds the soft ground shadow (which must stay un-outlined).
   const c = makeCanvas(ACTOR_W, ACTOR_H);
   const g = ctx2d(c);
-  drawBody(g, kit, dir, legPhase, attack);
+  groundShadow(g, ACTOR_W / 2, ACTOR_H - 8, kit.width * 0.9);
+
+  const body = makeCanvas(ACTOR_W, ACTOR_H);
+  drawBody(ctx2d(body), kit, dir, legPhase, attack);
+  g.drawImage(outlined(body), 0, 0);
   return c;
 }
 
@@ -204,21 +215,26 @@ function renderDead(kit: ActorKit): HTMLCanvasElement {
   const cx = ACTOR_W / 2;
   const cy = ACTOR_H - 14;
   groundShadow(g, cx, cy + 4, kit.width);
-  // Sprawled body
+  // Blood pool (stays soft / un-outlined).
   g.fillStyle = css(P.bloodDark, 0.6);
   g.beginPath();
   g.ellipse(cx, cy + 4, kit.width * 1.1, kit.width * 0.5, 0, 0, Math.PI * 2);
   g.fill();
-  g.save();
-  g.translate(cx, cy);
-  g.rotate(0.2);
-  g.fillStyle = css(kit.body);
-  g.fillRect(-kit.width * 0.6, -kit.width * 0.3, kit.width * 1.2, kit.width * 0.6);
-  g.fillStyle = css(kit.head);
-  g.beginPath();
-  g.ellipse(-kit.width * 0.7, -kit.width * 0.1, kit.width * 0.26, kit.width * 0.26, 0, 0, Math.PI * 2);
-  g.fill();
-  g.restore();
+
+  // Sprawled body on its own layer so it gets a crisp outline.
+  const body = makeCanvas(ACTOR_W, ACTOR_H);
+  const bg = ctx2d(body);
+  bg.save();
+  bg.translate(cx, cy);
+  bg.rotate(0.2);
+  bg.fillStyle = css(kit.body);
+  bg.fillRect(-kit.width * 0.6, -kit.width * 0.3, kit.width * 1.2, kit.width * 0.6);
+  bg.fillStyle = css(kit.head);
+  bg.beginPath();
+  bg.ellipse(-kit.width * 0.7, -kit.width * 0.1, kit.width * 0.26, kit.width * 0.26, 0, 0, Math.PI * 2);
+  bg.fill();
+  bg.restore();
+  g.drawImage(outlined(body), 0, 0);
   return c;
 }
 

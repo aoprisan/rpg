@@ -22,7 +22,7 @@ import {
   makeGold,
   makeSwordItem,
 } from "./generateItems";
-import { radialGlow } from "./draw";
+import { radialGlow, makeVignette } from "./draw";
 import { PALETTE as P } from "./palette";
 
 // Builds every texture once from the procedural canvas generators and caches
@@ -63,6 +63,7 @@ export interface Assets {
   items: { health: Texture; mana: Texture; gold: Texture; sword: Texture };
   torchGlow: Texture;
   magicGlow: Texture;
+  vignette: Texture;
 }
 
 let cached: Assets | null = null;
@@ -98,8 +99,9 @@ export function buildAssets(): Assets {
       gold: tex(makeGold()),
       sword: tex(makeSwordItem()),
     },
-    torchGlow: tex(radialGlow(256, P.torch, P.torch)),
+    torchGlow: tex(radialGlow(256, P.torchCore, P.torch)),
     magicGlow: tex(radialGlow(64, P.magicCore, P.magic)),
+    vignette: tex(makeVignette()),
   };
   return cached;
 }
