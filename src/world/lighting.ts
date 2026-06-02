@@ -25,6 +25,8 @@ export class Lighting {
   readonly root = new Container();
   private fog = new Graphics();
   private playerGlow: Sprite;
+  private playerPool: Sprite;
+  private wallGlows: { sprite: Sprite; base: number; seed: number }[] = [];
   private explored: Uint8Array;
   private lastTX = -999;
   private lastTY = -999;
@@ -46,12 +48,22 @@ export class Lighting {
       const glow = new Sprite(assets.torchGlow);
       glow.anchor.set(0.5);
       glow.blendMode = "add";
-      glow.alpha = 0.4;
-      glow.scale.set(0.5);
+      glow.alpha = 0.45;
+      glow.scale.set(0.55);
       glow.x = s.x;
       glow.y = s.y + TILE_HALF_H - WALL_H * 0.4;
       this.root.addChild(glow);
+      this.wallGlows.push({ sprite: glow, base: 0.45, seed: (x * 13 + y * 7) % 100 });
     }
+
+    // Wide, dim pool that softly washes the floor around the player so the lit
+    // area reads as a gradient instead of a hard torch disc.
+    this.playerPool = new Sprite(assets.torchGlow);
+    this.playerPool.anchor.set(0.5);
+    this.playerPool.blendMode = "add";
+    this.playerPool.alpha = 0.1;
+    this.playerPool.scale.set(2.6);
+    this.root.addChild(this.playerPool);
 
     // Player torch glow (flickers).
     this.playerGlow = new Sprite(assets.torchGlow);
@@ -78,7 +90,18 @@ export class Lighting {
     this.playerGlow.y = s.y + TILE_HALF_H;
     const flick = 1 + Math.sin(time * 9) * 0.05 + Math.sin(time * 3.3) * 0.04;
     this.playerGlow.scale.set(1.7 * flick);
-    this.playerGlow.alpha = 0.42 + Math.sin(time * 11) * 0.04;
+    this.playerGlow.alpha = 0.32 + Math.sin(time * 11) * 0.03;
+    this.playerPool.x = s.x;
+    this.playerPool.y = s.y + TILE_HALF_H;
+    this.playerPool.scale.set(2.6 * (1 + Math.sin(time * 2.7) * 0.03));
+    this.playerPool.alpha = 0.1 + Math.sin(time * 5.1) * 0.015;
+
+    // Each wall torch breathes on its own offset rhythm.
+    for (const w of this.wallGlows) {
+      const t = time * 6 + w.seed;
+      w.sprite.alpha = w.base + Math.sin(t) * 0.06 + Math.sin(t * 0.41) * 0.04;
+      w.sprite.scale.set(0.55 * (1 + Math.sin(t * 0.7) * 0.04));
+    }
 
     const tx = Math.round(px);
     const ty = Math.round(py);

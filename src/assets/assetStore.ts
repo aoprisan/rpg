@@ -63,6 +63,8 @@ export interface Assets {
   items: { health: Texture; mana: Texture; gold: Texture; sword: Texture };
   torchGlow: Texture;
   magicGlow: Texture;
+  mote: Texture;
+  ember: Texture;
   vignette: Texture;
 }
 
@@ -101,6 +103,10 @@ export function buildAssets(): Assets {
     },
     torchGlow: tex(radialGlow(256, P.torchCore, P.torch)),
     magicGlow: tex(radialGlow(64, P.magicCore, P.magic)),
+    // Tiny soft sprites for atmosphere: pale drifting dust motes and warm
+    // torch embers. The bloom pass turns these faint dots into airy glows.
+    mote: tex(radialGlow(32, P.torchCore, P.torch)),
+    ember: tex(radialGlow(24, P.torchCore, P.torch)),
     vignette: tex(makeVignette()),
   };
   return cached;

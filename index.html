@@ -4,10 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Gothic Depths</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap"
+      rel="stylesheet"
+    />
+
     <style>
       :root {
         color-scheme: dark;
+        /* Candle-lit occult palette */
+        --ink: #07060a;
+        --ink-warm: #120b0a;
+        --oxblood: #7e1717;
+        --oxblood-bright: #a8231f;
+        --ember: #ff9b46;
+        --ember-soft: #e87a31;
+        --gold: #c9a24b;
+        --gold-bright: #e7c878;
+        --bone: #ded2bb;
+        --bone-dim: #8d8068;
+        --bone-faint: #5f5746;
       }
+
       html,
       body {
         margin: 0;
@@ -15,49 +36,530 @@
         height: 100%;
         background: #000;
         overflow: hidden;
-        font-family: "Times New Roman", Georgia, serif;
+        font-family: "EB Garamond", Georgia, serif;
         cursor: default;
       }
+
       #app {
         position: fixed;
         inset: 0;
+        z-index: 0;
       }
       canvas {
         display: block;
         image-rendering: pixelated;
       }
-      /* Loading screen shown until the PixiJS app boots. */
+
+      /* ============================================================
+         The landing / loading overlay — the entry into the depths.
+         ============================================================ */
       #boot {
         position: fixed;
         inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          radial-gradient(120% 90% at 50% 118%, rgba(255, 138, 56, 0.16), rgba(168, 35, 31, 0.05) 28%, transparent 52%),
+          radial-gradient(100% 80% at 50% -10%, rgba(126, 23, 23, 0.22), transparent 55%),
+          radial-gradient(80% 70% at 50% 45%, #1a1212 0%, #0c0809 40%, var(--ink) 78%);
+        transition: opacity 1s ease, filter 1.1s ease, transform 1.1s ease;
+        will-change: opacity, transform, filter;
+      }
+
+      /* Film grain + heavy vignette layered over everything. */
+      #boot::before {
+        content: "";
+        position: absolute;
+        inset: -2px;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
+        opacity: 0.05;
+        mix-blend-mode: overlay;
+        animation: grain 0.6s steps(2) infinite;
+      }
+      #boot::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(118% 100% at 50% 42%, transparent 48%, rgba(4, 2, 4, 0.7) 88%, #000 100%);
+      }
+
+      .atmosphere {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      /* A breathing torch-glow rising from below the title. */
+      .glow {
+        position: absolute;
+        left: 50%;
+        bottom: 4%;
+        width: min(70vw, 720px);
+        height: min(70vw, 720px);
+        transform: translateX(-50%);
+        background: radial-gradient(circle, rgba(255, 150, 70, 0.32), rgba(232, 120, 49, 0.12) 35%, transparent 66%);
+        filter: blur(8px);
+        animation: flicker 4.5s ease-in-out infinite;
+      }
+      .embers {
+        position: absolute;
+        inset: 0;
+      }
+      .embers span {
+        position: absolute;
+        bottom: -12px;
+        width: var(--size);
+        height: var(--size);
+        border-radius: 50%;
+        background: radial-gradient(circle, var(--gold-bright), var(--ember-soft) 55%, transparent 72%);
+        box-shadow: 0 0 6px rgba(255, 155, 70, 0.7);
+        opacity: 0;
+        animation: emberRise var(--dur) var(--delay) linear infinite;
+      }
+
+      .landing {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 6vh 5vw;
+      }
+
+      .kicker {
+        margin: 0 0 1.1rem;
+        font-family: "Cinzel", serif;
+        font-weight: 500;
+        font-size: clamp(0.62rem, 1.5vw, 0.82rem);
+        letter-spacing: 0.62em;
+        text-transform: uppercase;
+        text-indent: 0.62em;
+        color: var(--bone-dim);
+        opacity: 0;
+        animation: riseIn 1.1s ease 0.1s forwards;
+      }
+
+      .title {
+        margin: 0;
+        font-family: "Cinzel Decorative", "Cinzel", serif;
+        font-weight: 900;
+        font-size: clamp(2.6rem, 9vw, 6.4rem);
+        line-height: 0.96;
+        letter-spacing: 0.06em;
+        text-indent: 0.06em;
+        color: var(--bone);
+        background: linear-gradient(180deg, #f3e9d2 0%, #d8b25a 42%, #8a1c1c 104%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 2px 1px #000) drop-shadow(0 0 26px rgba(168, 35, 31, 0.45))
+          drop-shadow(0 0 60px rgba(255, 138, 56, 0.18));
+        opacity: 0;
+        animation: riseIn 1.3s cubic-bezier(0.16, 0.84, 0.3, 1) 0.26s forwards;
+      }
+
+      .rule {
         display: flex;
         align-items: center;
-        justify-content: center;
+        gap: 0.85rem;
+        width: min(78vw, 460px);
+        margin: 1.5rem 0 0.2rem;
+        color: var(--gold);
+        opacity: 0;
+        animation: riseIn 1s ease 0.6s forwards;
+      }
+      .rule .line {
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--gold) 22%, var(--gold-bright) 50%, var(--gold) 78%, transparent);
+        transform: scaleX(0.3);
+        transform-origin: center;
+        animation: drawRule 1.3s cubic-bezier(0.16, 0.84, 0.3, 1) 0.7s forwards;
+      }
+      .rule .d {
+        font-size: 0.7rem;
+        text-shadow: 0 0 10px rgba(201, 162, 75, 0.8);
+      }
+
+      /* ---- Loading state ---- */
+      .loading {
+        margin-top: 2.4rem;
+        height: 3.4rem;
+        display: flex;
         flex-direction: column;
-        gap: 0.6rem;
-        color: #8a1c1c;
-        background: radial-gradient(circle at 50% 40%, #1a1410 0%, #000 70%);
-        z-index: 10;
-        letter-spacing: 0.3em;
+        align-items: center;
+        gap: 1.1rem;
+        opacity: 0;
+        animation: riseIn 1s ease 0.95s forwards;
+        transition: opacity 0.5s ease, transform 0.5s ease, height 0.6s ease, margin 0.6s ease;
+      }
+      .incantation {
+        margin: 0;
+        font-style: italic;
+        font-size: clamp(0.95rem, 2.3vw, 1.18rem);
+        letter-spacing: 0.18em;
+        color: var(--bone-dim);
+      }
+      .dots i {
+        opacity: 0.2;
+        animation: dotPulse 1.4s ease-in-out infinite;
+      }
+      .dots i:nth-child(2) {
+        animation-delay: 0.22s;
+      }
+      .dots i:nth-child(3) {
+        animation-delay: 0.44s;
+      }
+      .bar {
+        position: relative;
+        width: min(58vw, 280px);
+        height: 2px;
+        background: linear-gradient(90deg, transparent, rgba(201, 162, 75, 0.22), transparent);
+        overflow: hidden;
+      }
+      .bar span {
+        position: absolute;
+        top: 0;
+        left: -38%;
+        width: 38%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, var(--ember), var(--gold-bright), transparent);
+        box-shadow: 0 0 8px rgba(255, 155, 70, 0.8);
+        animation: barSweep 1.5s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      }
+
+      /* ---- Ready / Descend state (revealed once assets are forged) ---- */
+      .enter {
+        margin-top: 2.2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.7rem;
+        opacity: 0;
+        transform: translateY(16px);
+        pointer-events: none;
+        transition: opacity 0.9s ease, transform 0.9s cubic-bezier(0.16, 0.84, 0.3, 1);
+      }
+
+      .descend {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 1.1rem;
+        padding: 0.92rem 2.6rem;
+        font-family: "Cinzel", serif;
+        font-weight: 600;
+        font-size: clamp(1.05rem, 2.6vw, 1.4rem);
+        letter-spacing: 0.4em;
+        text-indent: 0.4em;
         text-transform: uppercase;
+        color: var(--bone);
+        background: linear-gradient(180deg, rgba(126, 23, 23, 0.28), rgba(40, 12, 12, 0.42));
+        border: 1px solid var(--oxblood);
+        outline: 1px solid rgba(201, 162, 75, 0.18);
+        outline-offset: 4px;
+        cursor: pointer;
+        transition: color 0.35s ease, border-color 0.35s ease, transform 0.35s ease, box-shadow 0.5s ease,
+          letter-spacing 0.35s ease, background 0.4s ease;
+        box-shadow: 0 0 0 rgba(255, 155, 70, 0), inset 0 0 24px rgba(0, 0, 0, 0.55);
+        animation: idlePulse 3.4s ease-in-out infinite;
       }
-      #boot .title {
-        font-size: 2rem;
-        text-shadow: 0 0 12px #4a0d0d;
+      .descend .orn {
+        color: var(--gold);
+        font-size: 0.62em;
+        transition: transform 0.4s ease, color 0.35s ease, text-shadow 0.4s ease;
       }
-      #boot .sub {
-        font-size: 0.8rem;
-        color: #5a4a3a;
-        letter-spacing: 0.2em;
+      .descend:hover,
+      .descend:focus-visible {
+        color: #fff5e4;
+        border-color: var(--gold-bright);
+        background: linear-gradient(180deg, rgba(168, 35, 31, 0.5), rgba(110, 20, 20, 0.5));
+        box-shadow: 0 0 34px rgba(255, 130, 50, 0.42), 0 0 70px rgba(168, 35, 31, 0.3),
+          inset 0 0 26px rgba(255, 120, 50, 0.18);
+        letter-spacing: 0.46em;
+        transform: translateY(-1px);
+        outline: none;
+        animation: none;
+      }
+      .descend:hover .orn,
+      .descend:focus-visible .orn {
+        color: var(--gold-bright);
+        text-shadow: 0 0 12px rgba(231, 200, 120, 0.9);
+        transform: scale(1.25) rotate(45deg);
+      }
+      .descend:active {
+        transform: translateY(1px) scale(0.99);
+      }
+
+      .controls {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.6rem 1.6rem;
+        font-size: clamp(0.82rem, 1.9vw, 0.96rem);
+        letter-spacing: 0.04em;
+        color: var(--bone-dim);
+      }
+      .controls li {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .controls kbd {
+        font-family: "Cinzel", serif;
+        font-size: 0.74em;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        color: var(--gold-bright);
+        padding: 0.16em 0.5em;
+        border: 1px solid rgba(201, 162, 75, 0.4);
+        border-radius: 2px;
+        background: rgba(201, 162, 75, 0.06);
+        box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.5);
+      }
+
+      /* Reveal: swap loading for the descend prompt. The dedicated exit
+         animation replaces the entrance one, whose `forwards` fill would
+         otherwise pin opacity at 1. */
+      #boot.is-ready .loading {
+        height: 0;
+        margin-top: 0.4rem;
+        pointer-events: none;
+        animation: fadeCollapse 0.5s ease forwards;
+      }
+      #boot.is-ready .enter {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+        transition-delay: 0.18s;
+      }
+      #boot.is-ready {
+        cursor: pointer;
+      }
+
+      /* Exit: descend into the dark. */
+      #boot.is-leaving {
+        opacity: 0;
+        transform: scale(1.07);
+        filter: blur(6px) brightness(0.4);
+        pointer-events: none;
+      }
+
+      @keyframes riseIn {
+        from {
+          opacity: 0;
+          transform: translateY(15px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes drawRule {
+        to {
+          transform: scaleX(1);
+        }
+      }
+      @keyframes fadeCollapse {
+        to {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+      }
+      @keyframes flicker {
+        0%,
+        100% {
+          opacity: 0.9;
+          transform: translateX(-50%) scale(1);
+        }
+        45% {
+          opacity: 0.66;
+          transform: translateX(-50%) scale(0.985);
+        }
+        70% {
+          opacity: 1;
+          transform: translateX(-50%) scale(1.02);
+        }
+      }
+      @keyframes grain {
+        0% {
+          transform: translate(0, 0);
+        }
+        100% {
+          transform: translate(-6px, 4px);
+        }
+      }
+      @keyframes emberRise {
+        0% {
+          transform: translateY(0) translateX(0) scale(1);
+          opacity: 0;
+        }
+        12% {
+          opacity: 0.95;
+        }
+        80% {
+          opacity: 0.55;
+        }
+        100% {
+          transform: translateY(-82vh) translateX(var(--drift)) scale(0.4);
+          opacity: 0;
+        }
+      }
+      @keyframes dotPulse {
+        0%,
+        100% {
+          opacity: 0.2;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      @keyframes barSweep {
+        0% {
+          left: -38%;
+        }
+        100% {
+          left: 100%;
+        }
+      }
+      @keyframes idlePulse {
+        0%,
+        100% {
+          box-shadow: 0 0 0 rgba(255, 155, 70, 0), inset 0 0 24px rgba(0, 0, 0, 0.55);
+        }
+        50% {
+          box-shadow: 0 0 22px rgba(168, 35, 31, 0.34), inset 0 0 26px rgba(0, 0, 0, 0.55);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot,
+        #boot * {
+          animation-duration: 0.001ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.18s !important;
+        }
+        .kicker,
+        .title,
+        .rule,
+        .loading {
+          opacity: 1;
+        }
+        .rule .line {
+          transform: scaleX(1);
+        }
       }
     </style>
   </head>
   <body>
     <div id="app"></div>
-    <div id="boot">
-      <div class="title">Gothic Depths</div>
-      <div class="sub">forging the depths&hellip;</div>
+
+    <div id="boot" role="dialog" aria-label="Gothic Depths — title screen">
+      <div class="atmosphere" aria-hidden="true">
+        <div class="glow"></div>
+        <div class="embers" id="embers"></div>
+      </div>
+
+      <div class="landing">
+        <p class="kicker">Enter the candle-lit dark of</p>
+        <h1 class="title">Gothic Depths</h1>
+        <div class="rule" aria-hidden="true">
+          <span class="d">&#9670;</span><span class="line"></span><span class="d">&#9670;</span>
+        </div>
+
+        <div class="loading" aria-live="polite">
+          <p class="incantation">
+            forging the depths<span class="dots"><i>.</i><i>.</i><i>.</i></span>
+          </p>
+          <div class="bar"><span></span></div>
+        </div>
+
+        <div class="enter">
+          <button id="descend-btn" class="descend" type="button" aria-label="Descend into the dungeon">
+            <span class="orn" aria-hidden="true">&#9670;</span><span class="label">Descend</span
+            ><span class="orn" aria-hidden="true">&#9670;</span>
+          </button>
+          <ul class="controls">
+            <li><kbd>L-Click</kbd> Move &middot; Attack</li>
+            <li><kbd>R-Click</kbd> Cast bolt</li>
+            <li><kbd>Q</kbd><kbd>E</kbd> Potions</li>
+          </ul>
+        </div>
+      </div>
     </div>
+
+    <script>
+      // Landing controller. Defined synchronously so the deferred game module
+      // (main.ts) can hand off the entry flow via window.GothicLanding.ready().
+      (function () {
+        var MIN_LOADING_MS = 1200; // let the loader breathe even on fast boots
+        var t0 = (window.performance && performance.now()) || 0;
+        var startFn = null;
+        var revealed = false;
+
+        function reveal() {
+          if (revealed) return;
+          revealed = true;
+          var boot = document.getElementById("boot");
+          if (boot) boot.classList.add("is-ready");
+        }
+
+        function descend() {
+          var boot = document.getElementById("boot");
+          if (!boot || !boot.classList.contains("is-ready") || boot.classList.contains("is-leaving")) return;
+          boot.classList.add("is-leaving");
+          if (startFn) startFn();
+          window.setTimeout(function () {
+            if (boot && boot.parentNode) boot.parentNode.removeChild(boot);
+          }, 1100);
+        }
+
+        window.GothicLanding = {
+          ready: function (fn) {
+            startFn = fn;
+            var now = (window.performance && performance.now()) || 0;
+            window.setTimeout(reveal, Math.max(0, MIN_LOADING_MS - (now - t0)));
+          },
+        };
+
+        function init() {
+          // Scatter drifting embers.
+          var host = document.getElementById("embers");
+          if (host) {
+            for (var i = 0; i < 18; i++) {
+              var e = document.createElement("span");
+              e.style.left = (Math.random() * 100).toFixed(2) + "%";
+              e.style.setProperty("--size", (2 + Math.random() * 3).toFixed(2) + "px");
+              e.style.setProperty("--dur", (6 + Math.random() * 7).toFixed(2) + "s");
+              e.style.setProperty("--delay", (-Math.random() * 13).toFixed(2) + "s");
+              e.style.setProperty("--drift", ((Math.random() * 2 - 1) * 46).toFixed(1) + "px");
+              host.appendChild(e);
+            }
+          }
+          var boot = document.getElementById("boot");
+          if (boot) boot.addEventListener("click", descend);
+          var btn = document.getElementById("descend-btn");
+          if (btn)
+            btn.addEventListener("keydown", function (ev) {
+              if (ev.key === "Enter" || ev.key === " ") {
+                ev.preventDefault();
+                descend();
+              }
+            });
+        }
+
+        if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+        else init();
+      })();
+    </script>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

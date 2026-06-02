@@ -146,6 +146,21 @@ function drawBody(
     g.fillRect(cx + lx * 0.6 - 3, headY + bob - 1, 1.6, 2);
     g.fillRect(cx + lx * 0.6 + 1.4, headY + bob - 1, 1.6, 2);
   }
+
+  // Torch rim light: a thin lit lip along the upper-left edge of the head and
+  // across the near shoulder for a touch of glossy form. Kept gentle so the
+  // bloom pass adds a soft sheen rather than washing the sprite to white.
+  g.strokeStyle = css(shade(facingAway ? kit.accent || kit.head : kit.head, 1.32), 0.32);
+  g.lineWidth = 1;
+  g.beginPath();
+  g.arc(cx + lx * 0.6, headY + bob, w * 0.27, Math.PI * 1.0, Math.PI * 1.55);
+  g.stroke();
+  g.strokeStyle = css(shade(kit.body, 1.4), 0.28);
+  g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(cx - w * 0.42 + lx, shoulderY + bob - 0.5);
+  g.lineTo(cx + w * 0.12 + lx, shoulderY + bob - 0.5);
+  g.stroke();
 }
 
 function drawWeapon(
