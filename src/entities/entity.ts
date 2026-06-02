@@ -66,6 +66,33 @@ export class Actor {
     this.sprite.zIndex = depthKey(this.x, this.y, 5);
   }
 
+  /**
+   * Continuous free movement along a grid-space direction (the mobile joystick).
+   * `gx,gy` need not be normalized; `scale` is a 0..1 throttle. Moves each axis
+   * independently and only into walkable tiles, so the actor slides along walls
+   * instead of sticking. Returns true if any movement happened.
+   */
+  moveByGrid(gx: number, gy: number, scale: number, dt: number, walkable: (x: number, y: number) => boolean): boolean {
+    const len = Math.hypot(gx, gy);
+    if (len === 0 || scale <= 0) return false;
+    const step = this.speed * dt * scale;
+    const ux = (gx / len) * step;
+    const uy = (gy / len) * step;
+    let moved = false;
+    const nx = this.x + ux;
+    if (walkable(Math.round(nx), Math.round(this.y))) {
+      this.x = nx;
+      moved = true;
+    }
+    const ny = this.y + uy;
+    if (walkable(Math.round(this.x), Math.round(ny))) {
+      this.y = ny;
+      moved = true;
+    }
+    this.dir = gridFacing8(gx, gy);
+    return moved;
+  }
+
   /** Advance along the current path; returns true while still moving. */
   followPath(dt: number): boolean {
     if (this.path.length === 0) return false;

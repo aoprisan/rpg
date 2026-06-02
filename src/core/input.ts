@@ -33,6 +33,9 @@ export class Input {
   }
 
   private onDown = (e: PointerEvent): void => {
+    // Touch is handled entirely by TouchControls (joystick + buttons); mouse and
+    // pen drive the classic click-to-move/attack scheme here.
+    if (e.pointerType === "touch") return;
     this.localPos(e);
     this.pointerDown = true;
     this.button = e.button;

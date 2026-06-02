@@ -48,6 +48,9 @@
       canvas {
         display: block;
         image-rendering: pixelated;
+        /* Let the virtual joystick own touch drags instead of the browser
+           scrolling/zooming the page underneath them. */
+        touch-action: none;
       }
 
       /* ============================================================
@@ -490,6 +493,7 @@
             <li><kbd>L-Click</kbd> Move &middot; Attack</li>
             <li><kbd>R-Click</kbd> Cast bolt</li>
             <li><kbd>Q</kbd><kbd>E</kbd> Potions</li>
+            <li><kbd>Touch</kbd> Drag to move &middot; tap <kbd>&#10022;</kbd> to cast</li>
           </ul>
         </div>
       </div>
