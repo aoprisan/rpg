@@ -20,6 +20,12 @@ function base(): { c: HTMLCanvasElement; g: CanvasRenderingContext2D; cx: number
 
 function potion(color: RGB): HTMLCanvasElement {
   const { c, g, cx, cy } = base();
+  // Soft colored aura so the vial glints in torchlight and reads as loot.
+  const aura = g.createRadialGradient(cx, cy + 2, 0, cx, cy + 2, 13);
+  aura.addColorStop(0, css(shade(color, 1.4), 0.45));
+  aura.addColorStop(1, css(color, 0));
+  g.fillStyle = aura;
+  g.fillRect(0, 0, ITEM, ITEM);
   // glass
   g.fillStyle = "rgba(200,210,220,0.25)";
   g.beginPath();
@@ -52,6 +58,12 @@ export function makeManaPotion(): HTMLCanvasElement {
 
 export function makeGold(): HTMLCanvasElement {
   const { c, g, cx, cy } = base();
+  // Warm aura under the coin pile.
+  const aura = g.createRadialGradient(cx, cy + 3, 0, cx, cy + 3, 13);
+  aura.addColorStop(0, css(shade(P.gold, 1.3), 0.4));
+  aura.addColorStop(1, css(P.gold, 0));
+  g.fillStyle = aura;
+  g.fillRect(0, 0, ITEM, ITEM);
   for (let i = 0; i < 6; i++) {
     const x = cx + (Math.cos(i) * 4);
     const y = cy + 3 + (i % 2) * 2 - (i > 3 ? 3 : 0);

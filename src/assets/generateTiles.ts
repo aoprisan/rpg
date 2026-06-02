@@ -63,6 +63,17 @@ export function makeFloorTile(rng: RNG, mossy: boolean): HTMLCanvasElement {
       g.fill();
     }
   }
+
+  // Edge ambient occlusion: darken toward the diamond rim so the grout lines
+  // between slabs read as recessed grooves and each stone gains a lit center.
+  const ao = g.createRadialGradient(
+    cx, topY + TILE_HALF_H, TILE_HALF_H * 0.35,
+    cx, topY + TILE_HALF_H, TILE_HALF_W,
+  );
+  ao.addColorStop(0, "rgba(0,0,0,0)");
+  ao.addColorStop(1, "rgba(0,0,0,0.34)");
+  g.fillStyle = ao;
+  g.fillRect(0, 0, c.width, c.height);
   g.restore();
 
   // Edge highlight

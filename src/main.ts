@@ -1,4 +1,4 @@
-import { Application, Container } from "pixi.js";
+import { Application, Container, Sprite } from "pixi.js";
 import {
   WORLD_SEED,
   PLAYER_MELEE_RANGE,
@@ -34,6 +34,7 @@ class Game {
   rng = new RNG(0xbeef);
 
   world = new Container();
+  vignette!: Sprite;
   dungeon!: Dungeon;
   tilemap!: TileMap;
   lighting!: Lighting;
@@ -68,6 +69,12 @@ class Game {
     this.assets = buildAssets();
 
     this.app.stage.addChild(this.world);
+
+    // Full-screen vignette over the world for gothic, light-starved corners.
+    this.vignette = new Sprite(this.assets.vignette);
+    this.vignette.anchor.set(0.5);
+    this.app.stage.addChild(this.vignette);
+    this.layoutVignette();
 
     this.hud = new HUD(this.app.screen.width, this.app.screen.height);
     this.overlay = new Overlay(this.app.screen.width, this.app.screen.height);
@@ -231,6 +238,17 @@ class Game {
     this.camera.resize(this.app.screen.width, this.app.screen.height);
     this.hud.resize(this.app.screen.width, this.app.screen.height);
     this.overlay.resize(this.app.screen.width, this.app.screen.height);
+    this.layoutVignette();
+  }
+
+  private layoutVignette(): void {
+    const w = this.app.screen.width;
+    const h = this.app.screen.height;
+    this.vignette.x = w / 2;
+    this.vignette.y = h / 2;
+    // Stretch to cover the viewport (slight overscan to hide the soft edge).
+    this.vignette.width = w * 1.06;
+    this.vignette.height = h * 1.06;
   }
 
   // ---- Main loop -----------------------------------------------------------
